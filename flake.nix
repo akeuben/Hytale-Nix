@@ -1,5 +1,5 @@
 {
-    description = "Hytale Launcher packaged for nixos";
+    description = "Official Hytale Launcher packaged for Nix";
 
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

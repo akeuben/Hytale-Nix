@@ -3,6 +3,8 @@
     steam-run-free,
     stdenv,
     makeWrapper,
+    makeDesktopItem,
+    copyDesktopItems,
 
     unzip,
     autoPatchelfHook,
@@ -21,6 +23,7 @@ in stdenv.mkDerivation {
         unzip
         makeWrapper
         autoPatchelfHook
+        copyDesktopItems
     ];
 
     buildInputs = [
@@ -32,6 +35,7 @@ in stdenv.mkDerivation {
     ];
 
     src = builtins.fetchurl details.download_url.linux.amd64;
+    icons = ./icons;
 
     unpackPhase = ''
         mkdir -p $PWD/src
@@ -42,6 +46,9 @@ in stdenv.mkDerivation {
         runHook preInstall
         mkdir -p $out/bin
         mkdir -p $out/resources
+        mkdir -p $out/share
+
+        cp -r $icons $out/share/icons
 
         # copy the main binary
         cp $PWD/src/hytale-launcher $out/resources/hytale-launcher
@@ -56,6 +63,17 @@ in stdenv.mkDerivation {
         --set DESKTOP_STARTUP_ID "com.hypixel.HytaleLauncher" \
         --add-flags $out/resources/hytale-launcher
     '';
+
+    desktopItems = [
+        (makeDesktopItem {
+            name = "Hytale Launcher";
+            exec = "hytale-launcher";
+            icon = "hytale-launcher";
+            desktopName = "Hytale Launcher";
+            comment = "Official Hytale launcher by Hypixel Studios";
+            categories = ["Game"];
+        })
+    ];
 
     meta = with lib; {
         description = "Hytale Launcher";
