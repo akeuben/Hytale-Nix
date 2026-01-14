@@ -1,50 +1,69 @@
-{ pkgs }: let
-    lib = pkgs.lib;
+{ 
+    lib,
+    steam-run-free,
+    stdenv,
+    makeWrapper,
+
+    unzip,
+    autoPatchelfHook,
+    glib,
+    webkitgtk_4_1,
+    gtk3,
+    glib-networking,
+    gnutls,
+}: let
     details = lib.importJSON ./launcher.json;
-in pkgs.stdenv.mkDerivation {
-        pname = "hytale-launcher";
-        version = details.version;
+in stdenv.mkDerivation {
+    pname = "hytale-launcher";
+    version = details.version;
 
-        nativeBuildInputs = with pkgs; [
-            unzip
-            makeWrapper
-            autoPatchelfHook
-        ];
+    nativeBuildInputs = [
+        unzip
+        makeWrapper
+        autoPatchelfHook
+    ];
 
-        buildInputs = with pkgs; [
-            glib
-            webkitgtk_4_1
-            gtk3
-            icu
-            SDL2
-            wayland
-            wayland-protocols
-            libx11
-        ];
+    buildInputs = [
+        glib
+        webkitgtk_4_1
+        gtk3
+        glib-networking
+        gnutls
+    ];
 
-        src = pkgs.fetchurl details.download_url.linux.amd64;
+    src = builtins.fetchurl details.download_url.linux.amd64;
 
-        unpackPhase = ''
-    mkdir -p $PWD/src
-    unzip $src -d $PWD/src
+    unpackPhase = ''
+        mkdir -p $PWD/src
+        unzip $src -d $PWD/src
     '';
 
-        installPhase = ''
-    mkdir -p $out/bin
+    installPhase = ''
+        runHook preInstall
+        mkdir -p $out/bin
+        mkdir -p $out/resources
 
-    # copy the main binary
-    cp $PWD/src/hytale-launcher $out/bin/hytale-launcher
-    chmod +x $out/bin/hytale-launcher
-
-    # wrap the binary and set environment variables for WebKitGTK
-    wrapProgram $out/bin/hytale-launcher \
-    --prefix PATH : "${pkgs.glib}/bin:${pkgs.gtk3}/bin:${pkgs.webkitgtk_4_1}/bin" \
-    --prefix LD_LIBRARY_PATH : "${pkgs.icu}/lib:${pkgs.SDL2}/lib:${pkgs.wayland}/lib:${pkgs.libx11}/lib:${pkgs.mesa}/lib" \
-    --set WEBKIT_DISABLE_DMABUF_RENDERER "1" \
-    --set WEBKIT_DISABLE_COMPOSITING_MODE "1" \
-    --set GDK_BACKEND "x11" \
-    --set SDL_VIDEODRIVER "x11" \
-    --set DISPLAY ":0" \
-    --set DESKTOP_STARTUP_ID "com.hypixel.HytaleLauncher"
+        # copy the main binary
+        cp $PWD/src/hytale-launcher $out/resources/hytale-launcher
+        chmod +x $out/resources/hytale-launcher
+        runHook postInstall
     '';
-    }
+
+    postFixup = ''
+        makeWrapper ${steam-run-free}/bin/steam-run $out/bin/hytale-launcher \
+        --set WEBKIT_DISABLE_DMABUF_RENDERER "1" \
+        --set WEBKIT_DISABLE_COMPOSITING_MODE "1" \
+        --set DESKTOP_STARTUP_ID "com.hypixel.HytaleLauncher" \
+        --add-flags $out/resources/hytale-launcher
+    '';
+
+    meta = with lib; {
+        description = "Hytale Launcher";
+        homepage    = "https://hytale.com";
+        license     = licenses.unfree;
+
+        maintainers = with maintainers; [ akeuben ];
+        platforms   = platforms.linux;
+        mainProgram = "hytale-launcher";
+    };
+}
