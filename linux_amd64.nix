@@ -41,6 +41,7 @@ in stdenv.mkDerivation {
     '';
 
     installPhase = ''
+        runHook preInstall
         mkdir -p $out/bin
         mkdir -p $out/resources
         mkdir -p $out/share
@@ -74,6 +75,7 @@ in stdenv.mkDerivation {
         EOF
 
         chmod +x $out/bin/hytale-launcher
+        runHook postInstall
     '';
 
     desktopItems = [
