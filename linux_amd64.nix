@@ -7,7 +7,6 @@
     copyDesktopItems,
 
     unzip,
-    autoPatchelfHook,
     glib,
     webkitgtk_4_1,
     gtk3,
@@ -22,7 +21,6 @@ in stdenv.mkDerivation {
     nativeBuildInputs = [
         unzip
         makeWrapper
-        autoPatchelfHook
         copyDesktopItems
     ];
 
@@ -43,7 +41,6 @@ in stdenv.mkDerivation {
     '';
 
     installPhase = ''
-        runHook preInstall
         mkdir -p $out/bin
         mkdir -p $out/resources
         mkdir -p $out/share
@@ -53,15 +50,30 @@ in stdenv.mkDerivation {
         # copy the main binary
         cp $PWD/src/hytale-launcher $out/resources/hytale-launcher
         chmod +x $out/resources/hytale-launcher
-        runHook postInstall
-    '';
 
-    postFixup = ''
-        makeWrapper ${steam-run-free}/bin/steam-run $out/bin/hytale-launcher \
-        --set WEBKIT_DISABLE_DMABUF_RENDERER "1" \
-        --set WEBKIT_DISABLE_COMPOSITING_MODE "1" \
-        --set DESKTOP_STARTUP_ID "com.hypixel.HytaleLauncher" \
-        --add-flags $out/resources/hytale-launcher
+        # write the wrapper script 
+        cat << EOF > $out/bin/hytale-launcher 
+        #!/usr/bin/env bash 
+        # Launcher fixes
+        export WEBKIT_DISABLE_DMABUF_RENDERER='1'
+        export WEBKIT_DISABLE_COMPOSITING_MODE='1'
+        export DESKTOP_STARTUP_ID='com.hypixel.HytaleLauncher'
+        # Launcher Runtime Directory
+        export LAUNCHER_DIR=\$XDG_DATA_HOME/Hytale/install/release/package/launcher/current
+        export LAUNCHER=\$LAUNCHER_DIR/hytale-launcher
+        export LD_LIBRARY_PATH="${webkitgtk_4_1}/lib:\$LD_LIBRARY_PATH"
+        mkdir -p \$LAUNCHER_DIR
+        # Copy file to user home directory if it does not yet exist 
+        if [ ! -f \$LAUNCHER ]; then 
+            echo "Copying launcher to user directory..."
+            cp $out/resources/hytale-launcher \$LAUNCHER
+            echo "Done. Launcher copied to \$LAUNCHER"
+        fi
+        cd \$LAUNCHER_DIR
+        exec ${steam-run-free}/bin/steam-run "./hytale-launcher" "\$@"
+        EOF
+
+        chmod +x $out/bin/hytale-launcher
     '';
 
     desktopItems = [
